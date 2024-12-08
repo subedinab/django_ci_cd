@@ -1,0 +1,38 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Set Up SSH Key
+      shell: bash
+      run: |
+        echo "${{ secrets.EC2_KEY }}" > ~/DjangoCDKey.pem
+        chmod 400 ~/DjangoCDKey.pem
+
+    - name: Deploy Code
+      shell: bash
+      run: |
+        # Copy all project files to the remote server
+        scp -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem -r ./myapp/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/Django_Project/
+        
+        # Add user to the Docker group and restart Docker
+        ssh -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          sudo usermod -aG docker ${{ secrets.EC2_USER }} &&
+          sudo systemctl restart docker
+        "
+        
+        # Run docker-compose
+        ssh -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+          cd /home/${{ secrets.EC2_USER }}/Django_Project &&
+          docker-compose up --build -d
+        "

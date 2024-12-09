@@ -10,31 +10,36 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Step 1: Checkout Code
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      # Step 2: Set Up SSH Key
       - name: Set Up SSH Key
         shell: bash
         run: |
           echo "${{ secrets.EC2_KEY }}" > ~/DjangoCDKey.pem
           chmod 400 ~/DjangoCDKey.pem
 
+      # Step 3: Clone and Deploy Code
       - name: Deploy Code
         shell: bash
         run: |
-          # Copy all project files to the remote server
-          git clone https://github.com/subedinab/django_ci_cd.git
-          django_ci_cd/myapp
-          # scp -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem -r ./myapp/* ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/Django_Project/
+          # Clone the repository directly onto the EC2 server
+          ssh -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
+            cd /home/${{ secrets.EC2_USER }}/Django_Project &&
+            git clone https://github.com/subedinab/django_ci_cd.git ||
+            (cd django_ci_cd && git pull)
+          "
 
-          # Add user to the Docker group and restart Docker
+          # Add the EC2 user to the Docker group and restart Docker (if needed)
           ssh -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
             sudo usermod -aG docker ${{ secrets.EC2_USER }} &&
             sudo systemctl restart docker
           "
 
-          # Run docker-compose
+          # Navigate to the project and run Docker Compose
           ssh -o StrictHostKeyChecking=no -i ~/DjangoCDKey.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "
-            cd /home/${{ secrets.EC2_USER }}/Django_Project &&
+            cd /home/${{ secrets.EC2_USER }}/Django_Project/django_ci_cd &&
             docker-compose up --build -d
           "

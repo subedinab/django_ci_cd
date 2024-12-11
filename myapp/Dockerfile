@@ -17,6 +17,7 @@ COPY . .
 
 # Expose the port that Django runs on
 EXPOSE 8000
+#kjhfaksh
 
 # Default command to run the Django server
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
